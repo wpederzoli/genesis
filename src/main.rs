@@ -2,10 +2,10 @@ use engine::Engine;
 
 mod engine;
 
-//TODO: add logging
 //TODO: resize
 //TODO: refactor
+//TODO: clear resources in event loop run
 
 fn main() {
-    pollster::block_on(Engine::new("Genesis")).run();
+    Engine::new("Genesis").run();
 }
