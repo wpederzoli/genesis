@@ -3,8 +3,9 @@ use wgpu::{
     Device, DeviceDescriptor, Instance, InstanceDescriptor, Queue, RequestAdapterOptions, Surface,
 };
 use winit::{
-    event::{Event, WindowEvent},
+    event::{Event, KeyEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
+    keyboard::{KeyCode, PhysicalKey},
     window::{Window, WindowBuilder},
 };
 
@@ -113,6 +114,18 @@ impl Engine {
                 ev.run(move |event, target| match event {
                     Event::WindowEvent {
                         event: WindowEvent::CloseRequested,
+                        ..
+                    } => target.exit(),
+                    Event::WindowEvent {
+                        event:
+                            WindowEvent::KeyboardInput {
+                                event:
+                                    KeyEvent {
+                                        physical_key: PhysicalKey::Code(KeyCode::Escape),
+                                        ..
+                                    },
+                                ..
+                            },
                         ..
                     } => target.exit(),
                     Event::WindowEvent {
