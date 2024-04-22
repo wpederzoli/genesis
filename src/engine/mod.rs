@@ -1,10 +1,14 @@
+use std::sync::Arc;
+
 use wgpu::{Device, DeviceDescriptor, Queue, Surface, SurfaceConfiguration};
 use winit::{
-    event::{Event, KeyEvent, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-    keyboard::{self, KeyCode},
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
+    keyboard::PhysicalKey,
     window::WindowBuilder,
 };
+
+mod graphics;
 
 const DEFAULT_CLEAR_COLOR: wgpu::Color = wgpu::Color {
     r: 0.3,
@@ -13,6 +17,7 @@ const DEFAULT_CLEAR_COLOR: wgpu::Color = wgpu::Color {
     a: 1.0,
 };
 
+//TODO: Abstract graphics
 pub struct Engine {
     event_loop: EventLoop<()>,
     device: Device,
@@ -20,9 +25,10 @@ pub struct Engine {
     surface: Surface<'static>,
     config: SurfaceConfiguration,
     clear_color: wgpu::Color,
+    input_handler: Arc<dyn Fn(&PhysicalKey, &EventLoopWindowTarget<()>)>,
 }
 
-impl<'a> Engine {
+impl Engine {
     pub fn new(title: &str) -> Self {
         let event_loop = EventLoop::new().unwrap();
         let window = WindowBuilder::new()
@@ -72,21 +78,30 @@ impl<'a> Engine {
             surface,
             config,
             clear_color: DEFAULT_CLEAR_COLOR,
+            input_handler: Arc::new(|_, _| {}),
         }
     }
 
     pub fn with_clear_color(self, color: wgpu::Color) -> Self {
         Engine {
-            event_loop: self.event_loop,
-            surface: self.surface,
-            device: self.device,
-            queue: self.queue,
-            config: self.config,
             clear_color: color,
+            ..self
+        }
+    }
+
+    pub fn with_input<F>(self, input_handler: F) -> Self
+    where
+        F: Fn(&PhysicalKey, &EventLoopWindowTarget<()>) + 'static,
+    {
+        Engine {
+            input_handler: Arc::new(input_handler),
+            ..self
         }
     }
 
     pub fn run(mut self) {
+        let input_handler = Arc::clone(&self.input_handler);
+
         self.event_loop
             .run(move |event, target| match event {
                 Event::WindowEvent {
@@ -94,17 +109,9 @@ impl<'a> Engine {
                     ..
                 } => target.exit(),
                 Event::WindowEvent {
-                    event:
-                        WindowEvent::KeyboardInput {
-                            event:
-                                KeyEvent {
-                                    physical_key: keyboard::PhysicalKey::Code(KeyCode::Escape),
-                                    ..
-                                },
-                            ..
-                        },
+                    event: WindowEvent::KeyboardInput { event, .. },
                     ..
-                } => target.exit(),
+                } => input_handler(&event.physical_key, &target),
                 Event::WindowEvent {
                     event: WindowEvent::RedrawRequested,
                     ..
