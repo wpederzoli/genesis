@@ -1,25 +1,28 @@
-use log::error;
-use wgpu::{
-    Device, DeviceDescriptor, Instance, InstanceDescriptor, Queue, RequestAdapterOptions, Surface,
-    SurfaceConfiguration, TextureUsages,
-};
+use wgpu::{Device, DeviceDescriptor, Queue, Surface, SurfaceConfiguration};
 use winit::{
     event::{Event, KeyEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    keyboard::{self, KeyCode, PhysicalKey},
-    window::{Window, WindowBuilder},
+    keyboard::{self, KeyCode},
+    window::WindowBuilder,
 };
 
-pub struct Engine<'a> {
+const DEFAULT_CLEAR_COLOR: wgpu::Color = wgpu::Color {
+    r: 0.3,
+    g: 0.5,
+    b: 0.4,
+    a: 1.0,
+};
+
+pub struct Engine {
     event_loop: EventLoop<()>,
-    device: Option<Device>,
-    queue: Option<Queue>,
-    surface: Option<Surface<'a>>,
-    config: Option<SurfaceConfiguration>,
-    window: Window,
+    device: Device,
+    queue: Queue,
+    surface: Surface<'static>,
+    config: SurfaceConfiguration,
+    clear_color: wgpu::Color,
 }
 
-impl<'a> Engine<'a> {
+impl<'a> Engine {
     pub fn new(title: &str) -> Self {
         let event_loop = EventLoop::new().unwrap();
         let window = WindowBuilder::new()
@@ -27,23 +30,17 @@ impl<'a> Engine<'a> {
             .build(&event_loop)
             .unwrap();
 
-        Engine {
-            event_loop,
-            window,
-            device: None,
-            queue: None,
-            surface: None,
-            config: None,
-        }
-    }
+        event_loop.set_control_flow(ControlFlow::Poll);
 
-    fn wgpu_setup(&'a mut self) {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
         });
 
-        let surface = instance.create_surface(&self.window).unwrap();
+        // window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+
+        let size = window.inner_size();
+        let surface = instance.create_surface(window).unwrap();
 
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::default(),
@@ -62,27 +59,34 @@ impl<'a> Engine<'a> {
         ))
         .unwrap();
 
-        let size = self.window.inner_size();
-
         let config = surface
             .get_default_config(&adapter, size.width, size.height)
             .unwrap();
 
         surface.configure(&device, &config);
 
-        self.surface = Some(surface);
-        self.config = Some(config);
-        self.device = Some(device);
-        self.queue = Some(queue);
+        Engine {
+            event_loop,
+            device,
+            queue,
+            surface,
+            config,
+            clear_color: DEFAULT_CLEAR_COLOR,
+        }
+    }
+
+    pub fn with_clear_color(self, color: wgpu::Color) -> Self {
+        Engine {
+            event_loop: self.event_loop,
+            surface: self.surface,
+            device: self.device,
+            queue: self.queue,
+            config: self.config,
+            clear_color: color,
+        }
     }
 
     pub fn run(mut self) {
-        self.wgpu_setup();
-
-        let surface = self.surface.unwrap();
-        let device = self.device.unwrap();
-        let queue = self.queue.unwrap();
-
         self.event_loop
             .run(move |event, target| match event {
                 Event::WindowEvent {
@@ -105,13 +109,15 @@ impl<'a> Engine<'a> {
                     event: WindowEvent::RedrawRequested,
                     ..
                 } => {
-                    let frame = surface
+                    let frame = self
+                        .surface
                         .get_current_texture()
                         .expect("Failed to get texture");
                     let view = frame
                         .texture
                         .create_view(&wgpu::TextureViewDescriptor::default());
-                    let mut encoder = device
+                    let mut encoder = self
+                        .device
                         .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
                     encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -120,12 +126,7 @@ impl<'a> Engine<'a> {
                             view: &view,
                             resolve_target: None,
                             ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color {
-                                    r: 0.3,
-                                    g: 0.5,
-                                    b: 0.4,
-                                    a: 1.0,
-                                }),
+                                load: wgpu::LoadOp::Clear(self.clear_color),
                                 store: wgpu::StoreOp::Store,
                             },
                         })],
@@ -134,8 +135,16 @@ impl<'a> Engine<'a> {
                         occlusion_query_set: None,
                     });
 
-                    queue.submit(Some(encoder.finish()));
+                    self.queue.submit(Some(encoder.finish()));
                     frame.present();
+                }
+                Event::WindowEvent {
+                    event: WindowEvent::Resized(size),
+                    ..
+                } => {
+                    self.config.width = size.width;
+                    self.config.height = size.height;
+                    self.surface.configure(&self.device, &self.config);
                 }
                 _ => (),
             })

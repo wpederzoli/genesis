@@ -1,12 +1,13 @@
 use engine::Engine;
-
 mod engine;
 
-//TODO: resize
-//TODO: refactor
-//TODO: clear resources in event loop run
-//TODO: fix lifetimes (prob use for<'a> syntax)
+//TODO: clear resources in event loop run (verify)
+//TODO: windowed and full-screen feature
+//TODO: draw to screen
+//TODO: on input
 
 fn main() {
-    Engine::new("Genesis").run();
+    Engine::new("Genesis")
+        .with_clear_color(wgpu::Color::BLACK)
+        .run();
 }
