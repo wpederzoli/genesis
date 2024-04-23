@@ -2,26 +2,31 @@ use std::sync::Arc;
 
 use winit::{
     event::{Event, WindowEvent},
-    event_loop::EventLoopWindowTarget,
+    event_loop::{EventLoop, EventLoopWindowTarget},
     keyboard::PhysicalKey,
 };
 
 use self::graphics::Graphics;
 
-mod graphics;
+pub mod graphics;
 
 pub struct Engine {
+    event_loop: EventLoop<()>,
     graphics: Graphics,
     input_handler: Arc<dyn Fn(&PhysicalKey, &EventLoopWindowTarget<()>)>,
+    draw_handler: Arc<dyn Fn(&Graphics)>,
 }
 
 impl Engine {
     pub fn new(title: &str) -> Self {
-        let graphics = Graphics::new(title);
+        let event_loop = EventLoop::new().unwrap();
+        let graphics = Graphics::new(title, &event_loop);
 
         Engine {
+            event_loop,
             graphics,
             input_handler: Arc::new(|_, _| {}),
+            draw_handler: Arc::new(|_| {}),
         }
     }
 
@@ -30,7 +35,7 @@ impl Engine {
         Engine { ..self }
     }
 
-    pub fn with_input<F>(self, input_handler: F) -> Self
+    pub fn with_input_system<F>(self, input_handler: F) -> Self
     where
         F: Fn(&PhysicalKey, &EventLoopWindowTarget<()>) + 'static,
     {
@@ -40,11 +45,21 @@ impl Engine {
         }
     }
 
+    pub fn with_draw_system<F>(self, draw_handler: F) -> Self
+    where
+        F: Fn(&Graphics) + 'static,
+    {
+        Engine {
+            draw_handler: Arc::new(draw_handler),
+            ..self
+        }
+    }
+
     pub fn run(mut self) {
         let input_handler = Arc::clone(&self.input_handler);
+        let draw_handler = Arc::clone(&self.draw_handler);
 
-        self.graphics
-            .event_loop
+        self.event_loop
             .run(move |event, target| match event {
                 Event::WindowEvent {
                     event: WindowEvent::CloseRequested,
@@ -63,14 +78,15 @@ impl Engine {
                         .surface
                         .get_current_texture()
                         .expect("Failed to get texture");
+
                     let view = frame
                         .texture
                         .create_view(&wgpu::TextureViewDescriptor::default());
+
                     let mut encoder = self
                         .graphics
                         .device
                         .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
                     encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                         label: None,
                         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -86,10 +102,10 @@ impl Engine {
                         occlusion_query_set: None,
                     });
 
-                    //Add client's drawing logic
-
                     self.graphics.queue.submit(Some(encoder.finish()));
                     frame.present();
+
+                    draw_handler(&self.graphics);
                 }
                 Event::WindowEvent {
                     event: WindowEvent::Resized(size),

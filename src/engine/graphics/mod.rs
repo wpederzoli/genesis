@@ -1,4 +1,4 @@
-use wgpu::{Device, DeviceDescriptor, Queue, Surface, SurfaceConfiguration};
+use wgpu::{Adapter, Device, DeviceDescriptor, Queue, Surface, SurfaceConfiguration};
 use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
@@ -12,17 +12,16 @@ const DEFAULT_CLEAR_COLOR: wgpu::Color = wgpu::Color {
 };
 
 pub struct Graphics {
-    pub event_loop: EventLoop<()>,
     pub device: Device,
     pub queue: Queue,
+    pub adapter: Adapter,
     pub surface: Surface<'static>,
     pub config: SurfaceConfiguration,
     pub clear_color: wgpu::Color,
 }
 
 impl Graphics {
-    pub fn new(title: &str) -> Self {
-        let event_loop = EventLoop::new().unwrap();
+    pub fn new(title: &str, event_loop: &EventLoop<()>) -> Self {
         let window = WindowBuilder::new()
             .with_title(title)
             .build(&event_loop)
@@ -35,7 +34,7 @@ impl Graphics {
             ..Default::default()
         });
 
-        // window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+        window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
 
         let size = window.inner_size();
         let surface = instance.create_surface(window).unwrap();
@@ -64,9 +63,9 @@ impl Graphics {
         surface.configure(&device, &config);
 
         Graphics {
-            event_loop,
             device,
             queue,
+            adapter,
             surface,
             config,
             clear_color: DEFAULT_CLEAR_COLOR,
