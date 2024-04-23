@@ -10,7 +10,6 @@ mod engine;
 //TODO: draw to screen
 
 fn my_input_handler(input_key: &PhysicalKey, target: &EventLoopWindowTarget<()>) {
-    println!("Handling input {:?}", input_key);
     match input_key {
         PhysicalKey::Code(key_code) => match key_code {
             KeyCode::Escape => {
