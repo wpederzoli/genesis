@@ -6,27 +6,28 @@ use winit::{
     keyboard::PhysicalKey,
 };
 
-use self::graphics::Graphics;
+use self::{graphics::Graphics, scene::Scene, scene_manager::scene_manager::SceneManager};
 
 pub mod graphics;
+pub mod scene;
+mod scene_manager;
 
 pub struct Engine {
     event_loop: EventLoop<()>,
     graphics: Graphics,
-    input_handler: Arc<dyn Fn(&PhysicalKey, &EventLoopWindowTarget<()>)>,
-    draw_handler: Arc<dyn Fn(&Graphics)>,
+    scene_manager: SceneManager,
 }
 
 impl Engine {
     pub fn new(title: &str) -> Self {
         let event_loop = EventLoop::new().unwrap();
         let graphics = Graphics::new(title, &event_loop);
+        let scene_manager = SceneManager::new();
 
         Engine {
             event_loop,
             graphics,
-            input_handler: Arc::new(|_, _| {}),
-            draw_handler: Arc::new(|_| {}),
+            scene_manager,
         }
     }
 
@@ -35,29 +36,34 @@ impl Engine {
         Engine { ..self }
     }
 
-    pub fn with_input_system<F>(self, input_handler: F) -> Self
-    where
-        F: Fn(&PhysicalKey, &EventLoopWindowTarget<()>) + 'static,
-    {
-        Engine {
-            input_handler: Arc::new(input_handler),
-            ..self
-        }
+    pub fn add_scene(mut self, scene: Scene) -> Self {
+        self.scene_manager.add_scene(scene);
+        Engine { ..self }
     }
 
-    pub fn with_draw_system<F>(self, draw_handler: F) -> Self
-    where
-        F: Fn(&Graphics) + 'static,
-    {
-        Engine {
-            draw_handler: Arc::new(draw_handler),
-            ..self
-        }
-    }
+    // pub fn with_input_system<F>(self, input_handler: F) -> Self
+    // where
+    //     F: Fn(&PhysicalKey, &EventLoopWindowTarget<()>) + 'static,
+    // {
+    //     Engine {
+    //         input_handler: Arc::new(input_handler),
+    //         ..self
+    //     }
+    // }
+    //
+    // pub fn with_draw_system<F>(self, draw_handler: F) -> Self
+    // where
+    //     F: Fn(&Graphics) + 'static,
+    // {
+    //     Engine {
+    //         draw_handler: Arc::new(draw_handler),
+    //         ..self
+    //     }
+    // }
 
     pub fn run(mut self) {
-        let input_handler = Arc::clone(&self.input_handler);
-        let draw_handler = Arc::clone(&self.draw_handler);
+        // let input_handler = Arc::clone(&self.input_handler);
+        // let draw_handler = Arc::clone(&self.draw_handler);
 
         self.event_loop
             .run(move |event, target| match event {
@@ -69,7 +75,7 @@ impl Engine {
                 Event::WindowEvent {
                     event: WindowEvent::KeyboardInput { event, .. },
                     ..
-                } => input_handler(&event.physical_key, &target),
+                } => {} //input_handler(&event.physical_key, &target),
 
                 Event::WindowEvent {
                     event: WindowEvent::RedrawRequested,
@@ -108,7 +114,7 @@ impl Engine {
                     self.graphics.queue.submit(Some(encoder.finish()));
                     frame.present();
 
-                    draw_handler(&self.graphics);
+                    // draw_handler(&self.graphics);
                 }
 
                 Event::WindowEvent {

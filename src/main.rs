@@ -1,8 +1,4 @@
-use engine::Engine;
-use genesis::{
-    genesis::my_input_handler,
-    player::{self, Player},
-};
+use engine::{scene::Scene, Engine};
 
 mod engine;
 mod genesis;
@@ -12,10 +8,10 @@ mod genesis;
 //TODO: Draw player to screen and movement
 //TODO: Abstarct drawing defaults
 //TODO: Turn engine into a lib
+//TODO: Scene Manager
 
 fn main() {
-    Engine::new("Genesis")
-        .with_clear_color(wgpu::Color::BLACK)
-        .with_input_system(my_input_handler)
-        .run();
+    //Engine::new("Genesis").add_scene(some_scene).add_scenes([some_scene, some_other_scene]).run()
+    let test_scene = Scene::new("TestScene");
+    Engine::new("Genesis").add_scene(test_scene).run();
 }
