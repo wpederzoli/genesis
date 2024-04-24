@@ -65,10 +65,12 @@ impl Engine {
                     event: WindowEvent::CloseRequested,
                     ..
                 } => target.exit(),
+
                 Event::WindowEvent {
                     event: WindowEvent::KeyboardInput { event, .. },
                     ..
                 } => input_handler(&event.physical_key, &target),
+
                 Event::WindowEvent {
                     event: WindowEvent::RedrawRequested,
                     ..
@@ -87,6 +89,7 @@ impl Engine {
                         .graphics
                         .device
                         .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
                     encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                         label: None,
                         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -107,6 +110,7 @@ impl Engine {
 
                     draw_handler(&self.graphics);
                 }
+
                 Event::WindowEvent {
                     event: WindowEvent::Resized(size),
                     ..
