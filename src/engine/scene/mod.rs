@@ -5,28 +5,23 @@ use winit::{event_loop::EventLoopWindowTarget, keyboard::PhysicalKey};
 use super::graphics::Graphics;
 
 pub trait BaseScene {
-    fn update(&mut self);
-    fn input(&mut self);
-    fn draw(&mut self);
+    fn input(&self, key: &PhysicalKey, target: &EventLoopWindowTarget<()>);
+    fn draw(&self, graphics: &mut Graphics);
 }
 
 pub struct Scene {
     pub label: String,
     input_handler: Arc<dyn Fn(&PhysicalKey, &EventLoopWindowTarget<()>)>,
-    draw_handler: Arc<dyn Fn(&Graphics)>,
+    draw_handler: Arc<dyn Fn(&mut Graphics)>,
 }
 
 impl BaseScene for Scene {
-    fn update(&mut self) {
-        todo!()
+    fn input(&self, key: &PhysicalKey, target: &EventLoopWindowTarget<()>) {
+        (self.input_handler)(key, target);
     }
 
-    fn input(&mut self) {
-        todo!()
-    }
-
-    fn draw(&mut self) {
-        todo!()
+    fn draw(&self, graphics: &mut Graphics) {
+        (self.draw_handler)(graphics);
     }
 }
 
@@ -51,17 +46,11 @@ impl Scene {
 
     pub fn with_draw_system<F>(self, draw_handler: F) -> Self
     where
-        F: Fn(&Graphics) + 'static,
+        F: Fn(&mut Graphics) + 'static,
     {
         Scene {
             draw_handler: Arc::new(draw_handler),
             ..self
         }
-    }
-
-    pub fn run(&mut self) {
-        self.input();
-        self.update();
-        self.draw();
     }
 }

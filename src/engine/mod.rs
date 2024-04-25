@@ -6,7 +6,11 @@ use winit::{
     keyboard::PhysicalKey,
 };
 
-use self::{graphics::Graphics, scene::Scene, scene_manager::scene_manager::SceneManager};
+use self::{
+    graphics::Graphics,
+    scene::{BaseScene, Scene},
+    scene_manager::scene_manager::SceneManager,
+};
 
 pub mod graphics;
 pub mod scene;
@@ -41,25 +45,13 @@ impl Engine {
         Engine { ..self }
     }
 
-    // pub fn with_input_system<F>(self, input_handler: F) -> Self
-    // where
-    //     F: Fn(&PhysicalKey, &EventLoopWindowTarget<()>) + 'static,
-    // {
-    //     Engine {
-    //         input_handler: Arc::new(input_handler),
-    //         ..self
-    //     }
-    // }
-    //
-    // pub fn with_draw_system<F>(self, draw_handler: F) -> Self
-    // where
-    //     F: Fn(&Graphics) + 'static,
-    // {
-    //     Engine {
-    //         draw_handler: Arc::new(draw_handler),
-    //         ..self
-    //     }
-    // }
+    pub fn add_active_scene(mut self, scene: Scene) -> Self {
+        let label = scene.label.clone();
+        self.scene_manager.add_scene(scene);
+        self.scene_manager.set_active_scene(&label);
+
+        Engine { ..self }
+    }
 
     pub fn run(mut self) {
         // let input_handler = Arc::clone(&self.input_handler);
@@ -75,8 +67,11 @@ impl Engine {
                 Event::WindowEvent {
                     event: WindowEvent::KeyboardInput { event, .. },
                     ..
-                } => {} //input_handler(&event.physical_key, &target),
-
+                } => {
+                    if let Some(scene) = self.scene_manager.get_active_scene() {
+                        scene.input(&event.physical_key, &target);
+                    }
+                }
                 Event::WindowEvent {
                     event: WindowEvent::RedrawRequested,
                     ..
@@ -114,7 +109,9 @@ impl Engine {
                     self.graphics.queue.submit(Some(encoder.finish()));
                     frame.present();
 
-                    // draw_handler(&self.graphics);
+                    if let Some(scene) = self.scene_manager.get_active_scene() {
+                        scene.draw(&mut self.graphics);
+                    }
                 }
 
                 Event::WindowEvent {

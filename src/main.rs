@@ -1,4 +1,5 @@
-use engine::{scene::Scene, Engine};
+use engine::{graphics::Graphics, scene::Scene, Engine};
+use genesis::scenes::gameplay::GamePlay;
 
 mod engine;
 mod genesis;
@@ -11,7 +12,7 @@ mod genesis;
 //TODO: Scene Manager
 
 fn main() {
-    //Engine::new("Genesis").add_scene(some_scene).add_scenes([some_scene, some_other_scene]).run()
-    let test_scene = Scene::new("TestScene");
-    Engine::new("Genesis").add_scene(test_scene).run();
+    Engine::new("Genesis")
+        .add_active_scene(GamePlay::new())
+        .run();
 }

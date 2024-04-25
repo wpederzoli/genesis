@@ -1,2 +1,2 @@
 pub mod genesis;
-pub mod player;
+pub mod scenes;

@@ -22,6 +22,11 @@ impl SceneManager {
         self.active_scene = index;
     }
 
+    pub fn get_active_scene(&self) -> Option<&Scene> {
+        self.active_scene
+            .and_then(|index| self.scenes.get(index).map(|scene| &**scene))
+    }
+
     fn get_scene(&self, label: &str) -> Option<usize> {
         for (index, scene) in self.scenes.iter().enumerate() {
             if scene.label == label {
