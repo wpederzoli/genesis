@@ -1,5 +1,5 @@
-use engine::{graphics::Graphics, scene::Scene, Engine};
-use genesis::scenes::gameplay::GamePlay;
+use engine::Engine;
+use genesis::{genesis::GameState, scenes::gameplay::GamePlay};
 
 mod engine;
 mod genesis;
@@ -9,10 +9,10 @@ mod genesis;
 //TODO: Draw player to screen and movement
 //TODO: Abstarct drawing defaults
 //TODO: Turn engine into a lib
-//TODO: Scene Manager
+//TODO: Shaders, feature
 
 fn main() {
     Engine::new("Genesis")
-        .add_active_scene(GamePlay::new())
+        .add_active_scene(GameState::GamePlay.init())
         .run();
 }

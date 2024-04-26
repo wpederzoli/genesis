@@ -1,9 +1,6 @@
-use std::sync::Arc;
-
 use winit::{
     event::{Event, WindowEvent},
-    event_loop::{EventLoop, EventLoopWindowTarget},
-    keyboard::PhysicalKey,
+    event_loop::EventLoop,
 };
 
 use self::{
@@ -54,9 +51,6 @@ impl Engine {
     }
 
     pub fn run(mut self) {
-        // let input_handler = Arc::clone(&self.input_handler);
-        // let draw_handler = Arc::clone(&self.draw_handler);
-
         self.event_loop
             .run(move |event, target| match event {
                 Event::WindowEvent {
