@@ -1,5 +1,5 @@
 use engine::Engine;
-use genesis::{genesis::GameState, scenes::gameplay::GamePlay};
+use genesis::genesis::GameState;
 
 mod engine;
 mod genesis;
