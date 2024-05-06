@@ -1,10 +1,6 @@
 use std::{borrow::Cow, path::Path};
 
 use wgpu::{Adapter, Device, DeviceDescriptor, Queue, Surface, SurfaceConfiguration};
-use winit::{
-    event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
-};
 
 mod helpers;
 
@@ -15,24 +11,18 @@ const DEFAULT_CLEAR_COLOR: wgpu::Color = wgpu::Color {
     a: 1.0,
 };
 
-pub struct Graphics {
+pub struct Graphics<'a> {
     pub device: Device,
     pub queue: Queue,
     pub adapter: Adapter,
-    pub surface: Surface<'static>,
+    pub surface: Surface<'a>,
     pub config: SurfaceConfiguration,
     pub clear_color: wgpu::Color,
+    pub window: &'a winit::window::Window,
 }
 
-impl Graphics {
-    pub fn new(title: &str, event_loop: &EventLoop<()>) -> Self {
-        let window = WindowBuilder::new()
-            .with_title(title)
-            .build(&event_loop)
-            .unwrap();
-
-        event_loop.set_control_flow(ControlFlow::Poll);
-
+impl<'a> Graphics<'a> {
+    pub fn new(window: &'a winit::window::Window) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
@@ -73,6 +63,7 @@ impl Graphics {
             surface,
             config,
             clear_color: DEFAULT_CLEAR_COLOR,
+            window,
         }
     }
 

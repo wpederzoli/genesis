@@ -1,40 +1,31 @@
-use winit::{
-    event::{Event, WindowEvent},
-    event_loop::EventLoop,
-};
+use winit::event::{Event, WindowEvent};
 
 use self::{
     graphics::Graphics,
     scene::{BaseScene, Scene},
     scene_manager::scene_manager::SceneManager,
+    window::Window,
 };
 
 pub mod graphics;
 pub mod scene;
 mod scene_manager;
+mod window;
 
 pub struct Engine {
-    event_loop: EventLoop<()>,
-    graphics: Graphics,
+    window: Window,
     scene_manager: SceneManager,
 }
 
 impl Engine {
     pub fn new(title: &str) -> Self {
-        let event_loop = EventLoop::new().unwrap();
-        let graphics = Graphics::new(title, &event_loop);
+        let window = Window::new(title);
         let scene_manager = SceneManager::new();
 
         Engine {
-            event_loop,
-            graphics,
+            window,
             scene_manager,
         }
-    }
-
-    pub fn with_clear_color(mut self, color: wgpu::Color) -> Self {
-        self.graphics.set_clear_color(color);
-        Engine { ..self }
     }
 
     pub fn add_scene(mut self, scene: Scene) -> Self {
@@ -50,8 +41,11 @@ impl Engine {
         Engine { ..self }
     }
 
-    pub fn run(mut self) {
-        self.event_loop
+    pub fn run(self) {
+        let mut graphics = Graphics::new(&self.window.window);
+
+        self.window
+            .event_loop
             .run(move |event, target| match event {
                 Event::WindowEvent {
                     event: WindowEvent::CloseRequested,
@@ -70,8 +64,7 @@ impl Engine {
                     event: WindowEvent::RedrawRequested,
                     ..
                 } => {
-                    let frame = self
-                        .graphics
+                    let frame = graphics
                         .surface
                         .get_current_texture()
                         .expect("Failed to get texture");
@@ -80,8 +73,7 @@ impl Engine {
                         .texture
                         .create_view(&wgpu::TextureViewDescriptor::default());
 
-                    let mut encoder = self
-                        .graphics
+                    let mut encoder = graphics
                         .device
                         .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
@@ -91,7 +83,7 @@ impl Engine {
                             view: &view,
                             resolve_target: None,
                             ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(self.graphics.clear_color),
+                                load: wgpu::LoadOp::Clear(graphics.clear_color),
                                 store: wgpu::StoreOp::Store,
                             },
                         })],
@@ -100,11 +92,11 @@ impl Engine {
                         occlusion_query_set: None,
                     });
 
-                    self.graphics.queue.submit(Some(encoder.finish()));
+                    graphics.queue.submit(Some(encoder.finish()));
                     frame.present();
 
                     if let Some(scene) = self.scene_manager.get_active_scene() {
-                        scene.draw(&mut self.graphics);
+                        scene.draw(&mut graphics);
                     }
                 }
 
@@ -112,11 +104,11 @@ impl Engine {
                     event: WindowEvent::Resized(size),
                     ..
                 } => {
-                    self.graphics.config.width = size.width;
-                    self.graphics.config.height = size.height;
-                    self.graphics
+                    graphics.config.width = size.width;
+                    graphics.config.height = size.height;
+                    graphics
                         .surface
-                        .configure(&self.graphics.device, &self.graphics.config);
+                        .configure(&graphics.device, &graphics.config);
                 }
                 _ => (),
             })
