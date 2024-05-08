@@ -64,40 +64,11 @@ impl Engine {
                     event: WindowEvent::RedrawRequested,
                     ..
                 } => {
-                    let frame = graphics
-                        .surface
-                        .get_current_texture()
-                        .expect("Failed to get texture");
-
-                    let view = frame
-                        .texture
-                        .create_view(&wgpu::TextureViewDescriptor::default());
-
-                    let mut encoder = graphics
-                        .device
-                        .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
-                    encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: None,
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            view: &view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(graphics.clear_color),
-                                store: wgpu::StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        timestamp_writes: None,
-                        occlusion_query_set: None,
-                    });
-
-                    graphics.queue.submit(Some(encoder.finish()));
-                    frame.present();
-
+                    graphics.render();
                     if let Some(scene) = self.scene_manager.get_active_scene() {
                         scene.draw(&mut graphics);
                     }
+                    graphics.window.request_redraw();
                 }
 
                 Event::WindowEvent {

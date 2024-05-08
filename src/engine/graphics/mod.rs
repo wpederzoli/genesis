@@ -18,6 +18,7 @@ pub struct Graphics<'a> {
     pub surface: Surface<'a>,
     pub config: SurfaceConfiguration,
     pub clear_color: wgpu::Color,
+    render_pipeline: Option<wgpu::RenderPipeline>,
     pub window: &'a winit::window::Window,
 }
 
@@ -63,6 +64,7 @@ impl<'a> Graphics<'a> {
             surface,
             config,
             clear_color: DEFAULT_CLEAR_COLOR,
+            render_pipeline: None,
             window,
         }
     }
@@ -71,8 +73,50 @@ impl<'a> Graphics<'a> {
         self.clear_color = color;
     }
 
+    pub fn render(&mut self) {
+        let frame = self
+            .surface
+            .get_current_texture()
+            .expect("Unable to get current texture");
+        let view = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+
+        let r_pipeline = self.render_pipeline.as_ref();
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(DEFAULT_CLEAR_COLOR),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
+
+            if let Some(render_pipeline) = r_pipeline {
+                render_pass.set_pipeline(&render_pipeline);
+                render_pass.draw(0..3, 0..1);
+            }
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+        frame.present();
+    }
+
     #[track_caller]
-    pub fn load_shader(&self, file_path: &str) {
+    pub fn load_shader(&mut self, file_path: &str) {
         let current_dir = std::env::current_dir().unwrap();
         let caller_location = std::panic::Location::caller().file();
         let parent = Path::new(caller_location).parent().unwrap();
@@ -98,9 +142,8 @@ impl<'a> Graphics<'a> {
         let swapchain_capabilities = self.surface.get_capabilities(&self.adapter);
         let swapchain_format = swapchain_capabilities.formats[0];
 
-        let render_pipeline = self
-            .device
-            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        self.render_pipeline = Some(self.device.create_render_pipeline(
+            &wgpu::RenderPipelineDescriptor {
                 label: None,
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
@@ -117,39 +160,7 @@ impl<'a> Graphics<'a> {
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState::default(),
                 multiview: None,
-            });
-
-        let frame = self
-            .surface
-            .get_current_texture()
-            .expect("Failed to acquire next swap chain texture");
-        let view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-        {
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(self.clear_color),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-
-            rpass.set_pipeline(&render_pipeline);
-            rpass.draw(0..3, 0..1);
-        }
-
-        self.queue.submit(Some(encoder.finish()));
-        frame.present()
+            },
+        ));
     }
 }
