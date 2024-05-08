@@ -12,5 +12,6 @@ impl Player {
 
     pub fn draw(&self, graphics: &mut Graphics) {
         graphics.load_shader("../../../shaders/triangle.wgsl");
+        graphics.load_shader("../../../shaders/tri.wgsl");
     }
 }

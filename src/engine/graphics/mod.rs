@@ -18,7 +18,7 @@ pub struct Graphics<'a> {
     pub surface: Surface<'a>,
     pub config: SurfaceConfiguration,
     pub clear_color: wgpu::Color,
-    render_pipeline: Option<wgpu::RenderPipeline>,
+    render_pipeline: Vec<wgpu::RenderPipeline>,
     pub window: &'a winit::window::Window,
 }
 
@@ -64,7 +64,7 @@ impl<'a> Graphics<'a> {
             surface,
             config,
             clear_color: DEFAULT_CLEAR_COLOR,
-            render_pipeline: None,
+            render_pipeline: Vec::new(),
             window,
         }
     }
@@ -87,8 +87,6 @@ impl<'a> Graphics<'a> {
                 label: Some("Render Encoder"),
             });
 
-        let r_pipeline = self.render_pipeline.as_ref();
-
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -105,8 +103,8 @@ impl<'a> Graphics<'a> {
                 timestamp_writes: None,
             });
 
-            if let Some(render_pipeline) = r_pipeline {
-                render_pass.set_pipeline(&render_pipeline);
+            for pipeline in &self.render_pipeline {
+                render_pass.set_pipeline(&pipeline);
                 render_pass.draw(0..3, 0..1);
             }
         }
@@ -142,8 +140,9 @@ impl<'a> Graphics<'a> {
         let swapchain_capabilities = self.surface.get_capabilities(&self.adapter);
         let swapchain_format = swapchain_capabilities.formats[0];
 
-        self.render_pipeline = Some(self.device.create_render_pipeline(
-            &wgpu::RenderPipelineDescriptor {
+        let render_pipeline = self
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: None,
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
@@ -160,7 +159,8 @@ impl<'a> Graphics<'a> {
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState::default(),
                 multiview: None,
-            },
-        ));
+            });
+
+        self.render_pipeline.push(render_pipeline);
     }
 }
