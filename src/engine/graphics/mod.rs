@@ -3,6 +3,7 @@ use std::{borrow::Cow, path::Path};
 use wgpu::{Adapter, Device, DeviceDescriptor, Queue, Surface, SurfaceConfiguration};
 
 mod helpers;
+mod vertex_buffers;
 
 const DEFAULT_CLEAR_COLOR: wgpu::Color = wgpu::Color {
     r: 0.3,
@@ -94,7 +95,7 @@ impl<'a> Graphics<'a> {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(DEFAULT_CLEAR_COLOR),
+                        load: wgpu::LoadOp::Clear(self.clear_color),
                         store: wgpu::StoreOp::Store,
                     },
                 })],

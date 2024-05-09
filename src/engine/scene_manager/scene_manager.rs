@@ -22,9 +22,9 @@ impl SceneManager {
         self.active_scene = index;
     }
 
-    pub fn get_active_scene(&self) -> Option<&Scene> {
+    pub fn get_active_scene(&mut self) -> Option<&mut Scene> {
         self.active_scene
-            .and_then(|index| self.scenes.get(index).map(|scene| &**scene))
+            .and_then(|index| self.scenes.get_mut(index).map(|scene| &mut **scene))
     }
 
     fn get_scene(&self, label: &str) -> Option<usize> {

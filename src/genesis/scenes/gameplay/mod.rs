@@ -19,6 +19,10 @@ impl GamePlay {
         }
     }
 
+    pub fn init(&self, graphics: &mut Graphics) {
+        self.player.init(graphics);
+    }
+
     pub fn draw(&self, graphics: &mut Graphics) {
         graphics.set_clear_color(wgpu::Color::BLACK);
         self.player.draw(graphics);

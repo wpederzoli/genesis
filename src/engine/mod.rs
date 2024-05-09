@@ -41,7 +41,7 @@ impl Engine {
         Engine { ..self }
     }
 
-    pub fn run(self) {
+    pub fn run(mut self) {
         let mut graphics = Graphics::new(&self.window.window);
 
         self.window
@@ -65,9 +65,15 @@ impl Engine {
                     ..
                 } => {
                     graphics.render();
+
                     if let Some(scene) = self.scene_manager.get_active_scene() {
+                        if !scene.initialized {
+                            scene.init(&mut graphics);
+                        }
+
                         scene.draw(&mut graphics);
                     }
+
                     graphics.window.request_redraw();
                 }
 

@@ -10,8 +10,10 @@ impl Player {
         Player { x, y }
     }
 
-    pub fn draw(&self, graphics: &mut Graphics) {
+    pub fn init(&self, graphics: &mut Graphics) {
         graphics.load_shader("../../../shaders/triangle.wgsl");
         graphics.load_shader("../../../shaders/tri.wgsl");
     }
+
+    pub fn draw(&self, graphics: &mut Graphics) {}
 }
