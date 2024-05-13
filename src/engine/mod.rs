@@ -33,10 +33,8 @@ impl Engine {
         Engine { ..self }
     }
 
-    pub fn add_active_scene(mut self, scene: Scene) -> Self {
-        let label = scene.label.clone();
-        self.scene_manager.add_scene(scene);
-        self.scene_manager.set_active_scene(&label);
+    pub fn switch_scene(mut self, label: &str) -> Self {
+        self.scene_manager.set_active_scene(label);
 
         Engine { ..self }
     }

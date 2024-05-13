@@ -13,6 +13,7 @@ mod genesis;
 
 fn main() {
     Engine::new("Genesis")
-        .add_active_scene(GameState::GamePlay.init())
+        .add_scene(GameState::GamePlay.init())
+        .switch_scene("GamePlay")
         .run();
 }

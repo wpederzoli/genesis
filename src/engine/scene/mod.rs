@@ -20,8 +20,8 @@ pub struct Scene {
 
 impl BaseScene for Scene {
     fn init(&mut self, graphics: &mut Graphics) {
-        self.initialized = true;
         (self.init_handler)(graphics);
+        self.initialized = true;
     }
     fn input(&self, key: &PhysicalKey, target: &EventLoopWindowTarget<()>) {
         (self.input_handler)(key, target);

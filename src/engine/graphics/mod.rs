@@ -1,9 +1,14 @@
 use std::{borrow::Cow, path::Path};
 
-use wgpu::{Adapter, Device, DeviceDescriptor, Queue, Surface, SurfaceConfiguration};
+use wgpu::{
+    util::DeviceExt, Adapter, Device, DeviceDescriptor, Queue, Surface, SurfaceConfiguration,
+};
+
+use self::vertex_buffers::Vertex;
 
 mod helpers;
-mod vertex_buffers;
+mod pipeline;
+pub mod vertex_buffers;
 
 const DEFAULT_CLEAR_COLOR: wgpu::Color = wgpu::Color {
     r: 0.3,
@@ -19,7 +24,7 @@ pub struct Graphics<'a> {
     pub surface: Surface<'a>,
     pub config: SurfaceConfiguration,
     pub clear_color: wgpu::Color,
-    render_pipeline: Vec<wgpu::RenderPipeline>,
+    pipelines: Vec<pipeline::Pipeline>,
     pub window: &'a winit::window::Window,
 }
 
@@ -65,7 +70,7 @@ impl<'a> Graphics<'a> {
             surface,
             config,
             clear_color: DEFAULT_CLEAR_COLOR,
-            render_pipeline: Vec::new(),
+            pipelines: Vec::new(),
             window,
         }
     }
@@ -104,9 +109,11 @@ impl<'a> Graphics<'a> {
                 timestamp_writes: None,
             });
 
-            for pipeline in &self.render_pipeline {
-                render_pass.set_pipeline(&pipeline);
-                render_pass.draw(0..3, 0..1);
+            for (index, pipeline) in self.pipelines.iter().enumerate() {
+                let vb = pipeline.vertex_buffer.as_ref();
+                render_pass.set_pipeline(&pipeline.render_pipeline);
+                render_pass.set_vertex_buffer(index as u32, vb.unwrap().slice(..));
+                render_pass.draw(0..pipeline.vertex_count, 0..1);
             }
         }
 
@@ -115,7 +122,7 @@ impl<'a> Graphics<'a> {
     }
 
     #[track_caller]
-    pub fn load_shader(&mut self, file_path: &str) {
+    pub fn load_shader(&mut self, file_path: &str, vertices: Option<&[Vertex]>) {
         let current_dir = std::env::current_dir().unwrap();
         let caller_location = std::panic::Location::caller().file();
         let parent = Path::new(caller_location).parent().unwrap();
@@ -141,6 +148,19 @@ impl<'a> Graphics<'a> {
         let swapchain_capabilities = self.surface.get_capabilities(&self.adapter);
         let swapchain_format = swapchain_capabilities.formats[0];
 
+        let contents = if let Some(vertices) = vertices {
+            vertices
+        } else {
+            &[]
+        };
+        let vertex_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(contents),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
         let render_pipeline = self
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -162,6 +182,12 @@ impl<'a> Graphics<'a> {
                 multiview: None,
             });
 
-        self.render_pipeline.push(render_pipeline);
+        let index_size = contents.len();
+
+        self.pipelines.push(pipeline::Pipeline::new(
+            render_pipeline,
+            Some(vertex_buffer),
+            index_size as u32,
+        ));
     }
 }

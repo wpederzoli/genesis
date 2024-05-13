@@ -8,6 +8,7 @@ pub enum GameState {
     GamePlay,
 }
 
+//TODO: Revisit this approach
 impl GameState {
     pub fn init(&self) -> Scene {
         match self {
