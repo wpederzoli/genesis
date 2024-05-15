@@ -111,9 +111,12 @@ impl<'a> Graphics<'a> {
 
             for (index, pipeline) in self.pipelines.iter().enumerate() {
                 let vb = pipeline.vertex_buffer.as_ref();
+                let ib = pipeline.index_buffer.as_ref();
                 render_pass.set_pipeline(&pipeline.render_pipeline);
                 render_pass.set_vertex_buffer(index as u32, vb.unwrap().slice(..));
-                render_pass.draw(0..pipeline.vertex_count, 0..1);
+                render_pass.set_index_buffer(ib.unwrap().slice(..), wgpu::IndexFormat::Uint16);
+                render_pass.draw_indexed(0..pipeline.index_count, 0, 0..1)
+                // render_pass.draw(0..pipelinevertex_count, 0..1);
             }
         }
 
@@ -122,7 +125,12 @@ impl<'a> Graphics<'a> {
     }
 
     #[track_caller]
-    pub fn load_shader(&mut self, file_path: &str, vertices: Option<&[Vertex]>) {
+    pub fn load_shader(
+        &mut self,
+        file_path: &str,
+        vertices: Option<&[Vertex]>,
+        indices: Option<&[u16]>,
+    ) {
         let current_dir = std::env::current_dir().unwrap();
         let caller_location = std::panic::Location::caller().file();
         let parent = Path::new(caller_location).parent().unwrap();
@@ -153,12 +161,27 @@ impl<'a> Graphics<'a> {
         } else {
             &[]
         };
+
+        let index_contents = if let Some(indices) = indices {
+            indices
+        } else {
+            &[]
+        };
+
         let vertex_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
                 contents: bytemuck::cast_slice(contents),
                 usage: wgpu::BufferUsages::VERTEX,
+            });
+
+        let index_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Index Buffer"),
+                contents: bytemuck::cast_slice(index_contents),
+                usage: wgpu::BufferUsages::INDEX,
             });
 
         let render_pipeline = self
@@ -169,7 +192,7 @@ impl<'a> Graphics<'a> {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_main",
-                    buffers: &[],
+                    buffers: &[Vertex::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -182,12 +205,15 @@ impl<'a> Graphics<'a> {
                 multiview: None,
             });
 
-        let index_size = contents.len();
+        let vertex_index_size = contents.len();
+        let index_count = index_contents.len();
 
         self.pipelines.push(pipeline::Pipeline::new(
             render_pipeline,
             Some(vertex_buffer),
-            index_size as u32,
+            vertex_index_size as u32,
+            Some(index_buffer),
+            index_count as u32,
         ));
     }
 }

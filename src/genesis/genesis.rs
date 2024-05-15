@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::engine::scene::Scene;
 
-use super::scenes::gameplay::{self, GamePlay};
+use super::scenes::gameplay::GamePlay;
 
 pub enum GameState {
     GamePlay,
