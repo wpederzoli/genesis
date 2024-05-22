@@ -4,10 +4,11 @@ use wgpu::{
     util::DeviceExt, Adapter, Device, DeviceDescriptor, Queue, Surface, SurfaceConfiguration,
 };
 
-use self::vertex_buffers::Vertex;
+use self::{texture::Texture, vertex_buffers::Vertex};
 
 mod helpers;
 mod pipeline;
+pub mod texture;
 pub mod vertex_buffers;
 
 const DEFAULT_CLEAR_COLOR: wgpu::Color = wgpu::Color {
@@ -25,6 +26,7 @@ pub struct Graphics<'a> {
     pub config: SurfaceConfiguration,
     pub clear_color: wgpu::Color,
     pipelines: Vec<pipeline::Pipeline>,
+    textures: Vec<Texture>,
     pub window: &'a winit::window::Window,
 }
 
@@ -71,12 +73,23 @@ impl<'a> Graphics<'a> {
             config,
             clear_color: DEFAULT_CLEAR_COLOR,
             pipelines: Vec::new(),
+            textures: Vec::new(),
             window,
         }
     }
 
     pub fn set_clear_color(&mut self, color: wgpu::Color) {
         self.clear_color = color;
+    }
+
+    #[track_caller]
+    pub fn load_texture(&mut self, file_path: &str) -> Texture {
+        let current_dir = std::env::current_dir().unwrap();
+        let caller_location = std::panic::Location::caller().file();
+        let parent = Path::new(caller_location).parent().unwrap();
+        let absolute_path = current_dir.join(parent).join(file_path);
+
+        Texture::load(absolute_path.to_str().unwrap(), self)
     }
 
     pub fn render(&mut self) {
@@ -109,6 +122,10 @@ impl<'a> Graphics<'a> {
                 timestamp_writes: None,
             });
 
+            for (index, texture) in self.textures.iter().enumerate() {
+                render_pass.set_bind_group(index as u32, &texture.bind_group, &[]);
+            }
+
             for (index, pipeline) in self.pipelines.iter().enumerate() {
                 let vb = pipeline.vertex_buffer.as_ref();
                 let ib = pipeline.index_buffer.as_ref();
@@ -116,7 +133,6 @@ impl<'a> Graphics<'a> {
                 render_pass.set_vertex_buffer(index as u32, vb.unwrap().slice(..));
                 render_pass.set_index_buffer(ib.unwrap().slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw_indexed(0..pipeline.index_count, 0, 0..1)
-                // render_pass.draw(0..pipelinevertex_count, 0..1);
             }
         }
 
@@ -130,6 +146,7 @@ impl<'a> Graphics<'a> {
         file_path: &str,
         vertices: Option<&[Vertex]>,
         indices: Option<&[u16]>,
+        texture: Option<Texture>,
     ) {
         let current_dir = std::env::current_dir().unwrap();
         let caller_location = std::panic::Location::caller().file();
@@ -145,11 +162,21 @@ impl<'a> Graphics<'a> {
                 ))),
             });
 
+        let bind_group_layouts_storage;
+
+        let bind_group_layouts: &[&wgpu::BindGroupLayout] = if let Some(tex) = texture {
+            self.textures.push(tex);
+            bind_group_layouts_storage = vec![&self.textures.last().unwrap().bind_group_layout];
+            &bind_group_layouts_storage
+        } else {
+            &[]
+        };
+
         let pipeline_layout = self
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
-                bind_group_layouts: &[],
+                bind_group_layouts,
                 push_constant_ranges: &[],
             });
 
