@@ -12,11 +12,11 @@ const VERTICES: &[Vertex] = &[
     }, // A
     Vertex {
         position: [-0.3, -0.5, 0.0],
-        tex_coord: [0.2, 1.0],
+        tex_coord: [0.0, 0.75],
     }, // B
     Vertex {
         position: [0.3, -0.5, 0.0],
-        tex_coord: [0.8, 1.0],
+        tex_coord: [1.0, 0.75],
     }, // C
     Vertex {
         position: [0.5, 0.0, 0.0],
@@ -24,7 +24,7 @@ const VERTICES: &[Vertex] = &[
     }, // D
     Vertex {
         position: [0.0, 0.5, 0.0],
-        tex_coord: [1.0, 0.0],
+        tex_coord: [0.5, 0.0],
     }, // E
 ];
 
@@ -37,6 +37,7 @@ impl Player {
 
     pub fn init(&self, graphics: &mut Graphics) {
         let tex = graphics.load_texture("../../../../../assets/profile.png");
+        let tex2 = graphics.load_texture("../../../../../assets/hand-drawn-robot.png");
 
         graphics.load_shader(
             "../../../shaders/dyn_polygon.wgsl",
@@ -44,7 +45,19 @@ impl Player {
             Some(INDICES),
             Some(tex),
         );
-        // graphics.load_shader("../../../shaders/tri.wgsl");
+        graphics.load_shader(
+            "../../../shaders/dyn_polygon-b.wgsl",
+            Some(VERTICES),
+            Some(INDICES),
+            None,
+        );
+        //TODO: Fix error with bind_groups (Texture.bind_grops)
+        graphics.load_shader(
+            "../../../shaders/dyn_polygon-c.wgsl",
+            Some(VERTICES),
+            Some(INDICES),
+            Some(tex2),
+        );
     }
 
     pub fn draw(&self, graphics: &mut Graphics) {}

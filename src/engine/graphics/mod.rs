@@ -83,13 +83,15 @@ impl<'a> Graphics<'a> {
     }
 
     #[track_caller]
-    pub fn load_texture(&mut self, file_path: &str) -> Texture {
+    pub fn load_texture(&mut self, file_path: &str) -> usize {
         let current_dir = std::env::current_dir().unwrap();
         let caller_location = std::panic::Location::caller().file();
         let parent = Path::new(caller_location).parent().unwrap();
         let absolute_path = current_dir.join(parent).join(file_path);
 
-        Texture::load(absolute_path.to_str().unwrap(), self)
+        let texture = Texture::load(absolute_path.to_str().unwrap(), self);
+        self.textures.push(texture);
+        self.textures.len() - 1
     }
 
     pub fn render(&mut self) {
@@ -122,15 +124,17 @@ impl<'a> Graphics<'a> {
                 timestamp_writes: None,
             });
 
-            for (index, texture) in self.textures.iter().enumerate() {
-                render_pass.set_bind_group(index as u32, &texture.bind_group, &[]);
-            }
-
-            for (index, pipeline) in self.pipelines.iter().enumerate() {
+            for pipeline in &self.pipelines {
                 let vb = pipeline.vertex_buffer.as_ref();
                 let ib = pipeline.index_buffer.as_ref();
                 render_pass.set_pipeline(&pipeline.render_pipeline);
-                render_pass.set_vertex_buffer(index as u32, vb.unwrap().slice(..));
+
+                if let Some(texture_index) = pipeline.texture_index {
+                    let texture = &self.textures[texture_index];
+                    render_pass.set_bind_group(0, &texture.bind_group, &[]);
+                }
+
+                render_pass.set_vertex_buffer(0, vb.unwrap().slice(..));
                 render_pass.set_index_buffer(ib.unwrap().slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw_indexed(0..pipeline.index_count, 0, 0..1)
             }
@@ -146,7 +150,7 @@ impl<'a> Graphics<'a> {
         file_path: &str,
         vertices: Option<&[Vertex]>,
         indices: Option<&[u16]>,
-        texture: Option<Texture>,
+        texture_index: Option<usize>,
     ) {
         let current_dir = std::env::current_dir().unwrap();
         let caller_location = std::panic::Location::caller().file();
@@ -164,9 +168,9 @@ impl<'a> Graphics<'a> {
 
         let bind_group_layouts_storage;
 
-        let bind_group_layouts: &[&wgpu::BindGroupLayout] = if let Some(tex) = texture {
-            self.textures.push(tex);
-            bind_group_layouts_storage = vec![&self.textures.last().unwrap().bind_group_layout];
+        let bind_group_layouts: &[&wgpu::BindGroupLayout] = if let Some(tex_index) = texture_index {
+            let texture = &self.textures[tex_index];
+            bind_group_layouts_storage = vec![&texture.bind_group_layout];
             &bind_group_layouts_storage
         } else {
             &[]
@@ -241,6 +245,7 @@ impl<'a> Graphics<'a> {
             vertex_index_size as u32,
             Some(index_buffer),
             index_count as u32,
+            texture_index,
         ));
     }
 }

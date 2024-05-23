@@ -4,6 +4,7 @@ pub struct Pipeline {
     pub vertex_count: u32,
     pub index_buffer: Option<wgpu::Buffer>,
     pub index_count: u32,
+    pub texture_index: Option<usize>,
 }
 
 impl Pipeline {
@@ -13,6 +14,7 @@ impl Pipeline {
         vertex_count: u32,
         index_buffer: Option<wgpu::Buffer>,
         index_count: u32,
+        texture_index: Option<usize>,
     ) -> Self {
         Pipeline {
             render_pipeline,
@@ -20,6 +22,7 @@ impl Pipeline {
             vertex_count,
             index_buffer,
             index_count,
+            texture_index,
         }
     }
 }
