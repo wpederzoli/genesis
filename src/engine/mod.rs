@@ -7,6 +7,7 @@ use self::{
     window::Window,
 };
 
+pub mod camera;
 pub mod graphics;
 pub mod scene;
 mod scene_manager;

@@ -7,9 +7,9 @@ mod genesis;
 //TODO: clear resources in event loop run (verify)
 //TODO: windowed and full-screen feature
 //TODO: Draw player to screen and movement
-//TODO: Abstarct drawing defaults
 //TODO: Turn engine into a lib
-//TODO: Shaders, feature
+//TODO: Document
+//TODO: Camera controller
 
 fn main() {
     Engine::new("Genesis")

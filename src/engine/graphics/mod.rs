@@ -6,6 +6,8 @@ use wgpu::{
 
 use self::{texture::Texture, vertex_buffers::Vertex};
 
+use super::camera::{camera_uniform::CameraUniform, Camera};
+
 mod helpers;
 mod pipeline;
 pub mod texture;
@@ -27,6 +29,11 @@ pub struct Graphics<'a> {
     pub clear_color: wgpu::Color,
     pipelines: Vec<pipeline::Pipeline>,
     textures: Vec<Texture>,
+    pub camera: Camera,
+    camera_bind_group_layout: wgpu::BindGroupLayout,
+    camera_uniform: CameraUniform,
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
     pub window: &'a winit::window::Window,
 }
 
@@ -37,7 +44,7 @@ impl<'a> Graphics<'a> {
             ..Default::default()
         });
 
-        // window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+        //window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
 
         let size = window.inner_size();
         let surface = instance.create_surface(window).unwrap();
@@ -65,6 +72,49 @@ impl<'a> Graphics<'a> {
 
         surface.configure(&device, &config);
 
+        let camera = Camera {
+            eye: (0.0, 1.0, 2.0).into(),
+            target: (0.0, 0.0, 0.0).into(),
+            up: cgmath::Vector3::unit_y(),
+            aspect: config.width as f32 / config.height as f32,
+            fovy: 45.0,
+            znear: 0.1,
+            zfar: 100.0,
+        };
+
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.update_view_proj(&camera);
+
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("Camera_binding_group_layout"),
+            });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: Some("camera_binding_group"),
+        });
+
         Graphics {
             device,
             queue,
@@ -74,24 +124,17 @@ impl<'a> Graphics<'a> {
             clear_color: DEFAULT_CLEAR_COLOR,
             pipelines: Vec::new(),
             textures: Vec::new(),
+            camera,
+            camera_uniform,
+            camera_buffer,
+            camera_bind_group,
+            camera_bind_group_layout,
             window,
         }
     }
 
     pub fn set_clear_color(&mut self, color: wgpu::Color) {
         self.clear_color = color;
-    }
-
-    #[track_caller]
-    pub fn load_texture(&mut self, file_path: &str) -> usize {
-        let current_dir = std::env::current_dir().unwrap();
-        let caller_location = std::panic::Location::caller().file();
-        let parent = Path::new(caller_location).parent().unwrap();
-        let absolute_path = current_dir.join(parent).join(file_path);
-
-        let texture = Texture::load(absolute_path.to_str().unwrap(), self);
-        self.textures.push(texture);
-        self.textures.len() - 1
     }
 
     pub fn render(&mut self) {
@@ -134,6 +177,8 @@ impl<'a> Graphics<'a> {
                     render_pass.set_bind_group(0, &texture.bind_group, &[]);
                 }
 
+                render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+
                 render_pass.set_vertex_buffer(0, vb.unwrap().slice(..));
                 render_pass.set_index_buffer(ib.unwrap().slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw_indexed(0..pipeline.index_count, 0, 0..1)
@@ -142,6 +187,18 @@ impl<'a> Graphics<'a> {
 
         self.queue.submit(std::iter::once(encoder.finish()));
         frame.present();
+    }
+
+    #[track_caller]
+    pub fn load_texture(&mut self, file_path: &str) -> usize {
+        let current_dir = std::env::current_dir().unwrap();
+        let caller_location = std::panic::Location::caller().file();
+        let parent = Path::new(caller_location).parent().unwrap();
+        let absolute_path = current_dir.join(parent).join(file_path);
+
+        let texture = Texture::load(absolute_path.to_str().unwrap(), self);
+        self.textures.push(texture);
+        self.textures.len() - 1
     }
 
     #[track_caller]
@@ -170,10 +227,12 @@ impl<'a> Graphics<'a> {
 
         let bind_group_layouts: &[&wgpu::BindGroupLayout] = if let Some(tex_index) = texture_index {
             let texture = &self.textures[tex_index];
-            bind_group_layouts_storage = vec![&texture.bind_group_layout];
+            bind_group_layouts_storage =
+                vec![&texture.bind_group_layout, &self.camera_bind_group_layout];
             &bind_group_layouts_storage
         } else {
-            &[]
+            bind_group_layouts_storage = vec![&self.camera_bind_group_layout];
+            &bind_group_layouts_storage
         };
 
         let pipeline_layout = self
