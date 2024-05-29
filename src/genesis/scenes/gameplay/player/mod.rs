@@ -42,6 +42,12 @@ impl Player {
         let tex2 = graphics.load_texture("../../../../../assets/hand-drawn-robot.png");
 
         graphics.load_shader(
+            "../../../shaders/dyn_polygon-cam-no-tex.wgsl",
+            Some(VERTICES),
+            Some(INDICES),
+            None,
+        );
+        graphics.load_shader(
             "../../../shaders/dyn_polygon-cam.wgsl",
             Some(VERTICES),
             Some(INDICES),
@@ -53,18 +59,12 @@ impl Player {
         //    Some(INDICES),
         //    Some(tex),
         //);
-        //graphics.load_shader(
-        //    "../../../shaders/dyn_polygon-b.wgsl",
-        //    Some(VERTICES),
-        //    Some(INDICES),
-        //    None,
-        //);
-        //graphics.load_shader(
-        //    "../../../shaders/dyn_polygon-c.wgsl",
-        //    Some(VERTICES),
-        //    Some(INDICES),
-        //    Some(tex2),
-        //);
+        graphics.load_shader(
+            "../../../shaders/dyn_polygon-c.wgsl",
+            Some(VERTICES),
+            Some(INDICES),
+            Some(tex2),
+        );
     }
 
     pub fn draw(&self, graphics: &mut Graphics) {}

@@ -1,6 +1,9 @@
+use image::imageops::grayscale_alpha;
+use wgpu::core::device::queue;
 use winit::event::{Event, WindowEvent};
 
 use self::{
+    camera::camera_controller::{self, CameraController},
     graphics::Graphics,
     scene::{BaseScene, Scene},
     scene_manager::scene_manager::SceneManager,
@@ -43,6 +46,8 @@ impl Engine {
     pub fn run(mut self) {
         let mut graphics = Graphics::new(&self.window.window);
 
+        let mut camera_controller = CameraController::new(0.5);
+
         self.window
             .event_loop
             .run(move |event, target| match event {
@@ -58,11 +63,20 @@ impl Engine {
                     if let Some(scene) = self.scene_manager.get_active_scene() {
                         scene.input(&event.physical_key, &target);
                     }
+                    camera_controller.process_events(&event);
                 }
                 Event::WindowEvent {
                     event: WindowEvent::RedrawRequested,
                     ..
                 } => {
+                    camera_controller.update_camera(&mut graphics.camera);
+                    graphics.camera_uniform.update_view_proj(&graphics.camera);
+                    graphics.queue.write_buffer(
+                        &graphics.camera_buffer,
+                        0,
+                        bytemuck::cast_slice(&[graphics.camera_uniform]),
+                    );
+
                     graphics.render();
 
                     if let Some(scene) = self.scene_manager.get_active_scene() {

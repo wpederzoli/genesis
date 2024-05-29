@@ -31,8 +31,8 @@ pub struct Graphics<'a> {
     textures: Vec<Texture>,
     pub camera: Camera,
     camera_bind_group_layout: wgpu::BindGroupLayout,
-    camera_uniform: CameraUniform,
-    camera_buffer: wgpu::Buffer,
+    pub camera_uniform: CameraUniform,
+    pub camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     pub window: &'a winit::window::Window,
 }
@@ -175,9 +175,10 @@ impl<'a> Graphics<'a> {
                 if let Some(texture_index) = pipeline.texture_index {
                     let texture = &self.textures[texture_index];
                     render_pass.set_bind_group(0, &texture.bind_group, &[]);
+                    render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+                } else {
+                    render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
                 }
-
-                render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
 
                 render_pass.set_vertex_buffer(0, vb.unwrap().slice(..));
                 render_pass.set_index_buffer(ib.unwrap().slice(..), wgpu::IndexFormat::Uint16);
