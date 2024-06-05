@@ -1,9 +1,12 @@
-use image::imageops::grayscale_alpha;
-use wgpu::core::device::queue;
-use winit::event::{Event, WindowEvent};
+use winit::{
+    dpi::PhysicalSize,
+    event::{Event, WindowEvent},
+    window::Fullscreen,
+};
 
 use self::{
-    camera::camera_controller::{self, CameraController},
+    camera::camera_controller::CameraController,
+    config::Config,
     graphics::Graphics,
     scene::{BaseScene, Scene},
     scene_manager::scene_manager::SceneManager,
@@ -11,6 +14,7 @@ use self::{
 };
 
 pub mod camera;
+pub mod config;
 pub mod graphics;
 pub mod scene;
 mod scene_manager;
@@ -22,14 +26,48 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(title: &str) -> Self {
-        let window = Window::new(title);
+    pub fn new() -> Self {
+        let window = Window::default();
         let scene_manager = SceneManager::new();
 
         Engine {
             window,
             scene_manager,
         }
+    }
+
+    pub fn new_from(title: &str, width: u32, height: u32, fullscreen: bool) -> Self {
+        let config = Config::new(title, width, height, fullscreen);
+        let window = Window::new(config);
+        let scene_manager = SceneManager::new();
+
+        Engine {
+            window,
+            scene_manager,
+        }
+    }
+
+    pub fn with_title(self, title: &str) -> Self {
+        self.window.window.set_title(title);
+
+        Engine { ..self }
+    }
+
+    pub fn with_dimensions(self, width: u32, height: u32) -> Self {
+        let _ = self
+            .window
+            .window
+            .request_inner_size(PhysicalSize::new(width, height));
+
+        Engine { ..self }
+    }
+
+    pub fn fullscreen(self) -> Self {
+        self.window
+            .window
+            .set_fullscreen(Some(Fullscreen::Borderless(None)));
+
+        Engine { ..self }
     }
 
     pub fn add_scene(mut self, scene: Scene) -> Self {
