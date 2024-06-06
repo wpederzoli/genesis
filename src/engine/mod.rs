@@ -1,3 +1,6 @@
+use std::env;
+
+use log::info;
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -30,16 +33,32 @@ impl Engine {
         let window = Window::default();
         let scene_manager = SceneManager::new();
 
+        info!("Engine created with default configuration.");
+
         Engine {
             window,
             scene_manager,
         }
     }
 
+    pub fn with_logs(self) -> Self {
+        env::set_var("RUST_LOG", "warn,error,info");
+
+        env_logger::init();
+        info!("Logging initialized");
+
+        Engine { ..self }
+    }
+
     pub fn new_from(title: &str, width: u32, height: u32, fullscreen: bool) -> Self {
         let config = Config::new(title, width, height, fullscreen);
         let window = Window::new(config);
         let scene_manager = SceneManager::new();
+
+        info!(
+            "Engine created with custon configuration: title={} widht={} height={} fullscreen={}",
+            title, width, height, fullscreen
+        );
 
         Engine {
             window,
@@ -50,6 +69,8 @@ impl Engine {
     pub fn with_title(self, title: &str) -> Self {
         self.window.window.set_title(title);
 
+        info!("Window's title set to: {}", title);
+
         Engine { ..self }
     }
 
@@ -59,6 +80,8 @@ impl Engine {
             .window
             .request_inner_size(PhysicalSize::new(width, height));
 
+        info!("Window's dimensions set to: {}x{}", width, height);
+
         Engine { ..self }
     }
 
@@ -66,6 +89,8 @@ impl Engine {
         self.window
             .window
             .set_fullscreen(Some(Fullscreen::Borderless(None)));
+
+        info!("Fullscreen activated");
 
         Engine { ..self }
     }
@@ -77,6 +102,8 @@ impl Engine {
 
     pub fn switch_scene(mut self, label: &str) -> Self {
         self.scene_manager.set_active_scene(label);
+
+        info!("Change active scene to: {}", label);
 
         Engine { ..self }
     }
@@ -132,6 +159,8 @@ impl Engine {
                     event: WindowEvent::Resized(size),
                     ..
                 } => {
+                    info!("Resize requested for: {}x{}", size.width, size.height);
+
                     graphics.config.width = size.width;
                     graphics.config.height = size.height;
                     graphics
