@@ -47,7 +47,7 @@ impl Engine {
         env_logger::init();
         info!("Logging initialized");
 
-        Engine { ..self }
+        self
     }
 
     pub fn new_from(title: &str, width: u32, height: u32, fullscreen: bool) -> Self {
@@ -71,7 +71,7 @@ impl Engine {
 
         info!("Window's title set to: {}", title);
 
-        Engine { ..self }
+        self
     }
 
     pub fn with_dimensions(self, width: u32, height: u32) -> Self {
@@ -82,7 +82,7 @@ impl Engine {
 
         info!("Window's dimensions set to: {}x{}", width, height);
 
-        Engine { ..self }
+        self
     }
 
     pub fn fullscreen(self) -> Self {
@@ -92,20 +92,20 @@ impl Engine {
 
         info!("Fullscreen activated");
 
-        Engine { ..self }
+        self
     }
 
-    pub fn add_scene(mut self, scene: Scene) -> Self {
-        self.scene_manager.add_scene(scene);
-        Engine { ..self }
+    pub fn add_scene(mut self, label: &str, scene: Box<dyn Scene>) -> Self {
+        self.scene_manager.add_scene(label, scene);
+
+        self
     }
 
     pub fn switch_scene(mut self, label: &str) -> Self {
-        self.scene_manager.set_active_scene(label);
-
+        self.scene_manager.request_scene_change(label);
         info!("Change active scene to: {}", label);
 
-        Engine { ..self }
+        self
     }
 
     pub fn run(mut self) {
@@ -122,15 +122,6 @@ impl Engine {
                 } => target.exit(),
 
                 Event::WindowEvent {
-                    event: WindowEvent::KeyboardInput { event, .. },
-                    ..
-                } => {
-                    if let Some(scene) = self.scene_manager.get_active_scene() {
-                        scene.input(&event.physical_key, &target);
-                    }
-                    camera_controller.process_events(&event);
-                }
-                Event::WindowEvent {
                     event: WindowEvent::RedrawRequested,
                     ..
                 } => {
@@ -145,10 +136,7 @@ impl Engine {
                     graphics.render();
 
                     if let Some(scene) = self.scene_manager.get_active_scene() {
-                        if !scene.initialized {
-                            scene.init(&mut graphics);
-                        }
-
+                        scene.update(0.016);
                         scene.draw(&mut graphics);
                     }
 
@@ -166,6 +154,12 @@ impl Engine {
                     graphics
                         .surface
                         .configure(&graphics.device, &graphics.config);
+                }
+
+                Event::WindowEvent { event, .. } => {
+                    if let Some(scene) = self.scene_manager.get_active_scene() {
+                        scene.input(&event, &target);
+                    }
                 }
                 _ => (),
             })
