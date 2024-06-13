@@ -8,12 +8,8 @@ use winit::{
 };
 
 use self::{
-    camera::camera_controller::CameraController,
-    config::Config,
-    graphics::Graphics,
-    scene::{BaseScene, Scene},
-    scene_manager::scene_manager::SceneManager,
-    window::Window,
+    camera::camera_controller::CameraController, config::Config, graphics::Graphics, scene::Scene,
+    scene_manager::scene_manager::SceneManager, window::Window,
 };
 
 pub mod camera;
@@ -95,7 +91,7 @@ impl Engine {
         self
     }
 
-    pub fn add_scene(mut self, label: &str, scene: Box<dyn Scene>) -> Self {
+    pub fn add_scene<S: Scene + 'static>(mut self, label: &str, scene: S) -> Self {
         self.scene_manager.add_scene(label, scene);
 
         self
@@ -139,6 +135,8 @@ impl Engine {
                         scene.update(0.016);
                         scene.draw(&mut graphics);
                     }
+
+                    self.scene_manager.update(&mut graphics);
 
                     graphics.window.request_redraw();
                 }

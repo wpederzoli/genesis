@@ -34,9 +34,9 @@ impl SceneManager {
     }
 
     ///Add a scene to the scenes hashmap
-    pub fn add_scene(&mut self, label: &str, scene: Box<dyn Scene>) {
+    pub fn add_scene<S: Scene + 'static>(&mut self, label: &str, scene: S) {
         info!("New scene added: {}", label);
-        self.scenes.insert(label.to_string(), scene);
+        self.scenes.insert(label.to_string(), Box::new(scene));
     }
 
     ///Pass a label of an existing scene, if the scene exists it will
