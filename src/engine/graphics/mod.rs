@@ -44,8 +44,6 @@ impl<'a> Graphics<'a> {
             ..Default::default()
         });
 
-        //window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
-
         let size = window.inner_size();
         let surface = instance.create_surface(window).unwrap();
 

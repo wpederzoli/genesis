@@ -12,7 +12,7 @@ use super::graphics::Graphics;
 ///- `is_initialized`: Is a flag that inidicates if the `init` function has been called or not
 pub trait Scene {
     fn init(&mut self, graphics: &mut Graphics);
-    fn input(&self, event: &WindowEvent, target: &EventLoopWindowTarget<()>);
+    fn input(&mut self, event: &WindowEvent, target: &EventLoopWindowTarget<()>);
     fn update(&mut self, delta_time: f32);
     fn draw(&self, graphics: &mut Graphics);
     fn cleanup(&mut self);
