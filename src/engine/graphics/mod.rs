@@ -1,7 +1,7 @@
 use std::{borrow::Cow, path::Path};
 
 use wgpu::{
-    util::DeviceExt, Adapter, Device, DeviceDescriptor, Queue, Surface, SurfaceConfiguration,
+    util::DeviceExt, Adapter, Device, DeviceDescriptor, Label, Queue, Surface, SurfaceConfiguration,
 };
 
 use self::{texture::Texture, vertex_buffers::Vertex};
@@ -20,6 +20,7 @@ const DEFAULT_CLEAR_COLOR: wgpu::Color = wgpu::Color {
     a: 1.0,
 };
 
+//TODO: cleanup camera
 pub struct Graphics<'a> {
     pub device: Device,
     pub queue: Queue,
@@ -29,6 +30,9 @@ pub struct Graphics<'a> {
     pub clear_color: wgpu::Color,
     pipelines: Vec<pipeline::Pipeline>,
     textures: Vec<Texture>,
+    uniform_buffers: Vec<wgpu::Buffer>,
+    uniform_bind_groups: Vec<wgpu::BindGroup>,
+    uniform_bind_group_layout: wgpu::BindGroupLayout,
     pub camera: Camera,
     camera_bind_group_layout: wgpu::BindGroupLayout,
     pub camera_uniform: CameraUniform,
@@ -113,6 +117,21 @@ impl<'a> Graphics<'a> {
             label: Some("camera_binding_group"),
         });
 
+        let uniform_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("Uniform Bind Group Layout"),
+            });
+
         Graphics {
             device,
             queue,
@@ -122,6 +141,9 @@ impl<'a> Graphics<'a> {
             clear_color: DEFAULT_CLEAR_COLOR,
             pipelines: Vec::new(),
             textures: Vec::new(),
+            uniform_buffers: Vec::new(),
+            uniform_bind_groups: Vec::new(),
+            uniform_bind_group_layout,
             camera,
             camera_uniform,
             camera_buffer,
@@ -178,6 +200,10 @@ impl<'a> Graphics<'a> {
                     render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
                 }
 
+                for bind_group in &self.uniform_bind_groups {
+                    render_pass.set_bind_group(2, bind_group, &[]);
+                }
+
                 render_pass.set_vertex_buffer(0, vb.unwrap().slice(..));
                 render_pass.set_index_buffer(ib.unwrap().slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw_indexed(0..pipeline.index_count, 0, 0..1)
@@ -222,23 +248,21 @@ impl<'a> Graphics<'a> {
                 ))),
             });
 
-        let bind_group_layouts_storage;
+        let mut bind_group_layouts = vec![&self.camera_bind_group_layout];
+        if !self.uniform_bind_groups.is_empty() {
+            bind_group_layouts.push(&self.uniform_bind_group_layout)
+        }
 
-        let bind_group_layouts: &[&wgpu::BindGroupLayout] = if let Some(tex_index) = texture_index {
+        if let Some(tex_index) = texture_index {
             let texture = &self.textures[tex_index];
-            bind_group_layouts_storage =
-                vec![&texture.bind_group_layout, &self.camera_bind_group_layout];
-            &bind_group_layouts_storage
-        } else {
-            bind_group_layouts_storage = vec![&self.camera_bind_group_layout];
-            &bind_group_layouts_storage
-        };
+            bind_group_layouts.insert(0, &texture.bind_group_layout);
+        }
 
         let pipeline_layout = self
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
-                bind_group_layouts,
+                bind_group_layouts: &bind_group_layouts,
                 push_constant_ranges: &[],
             });
 
@@ -305,5 +329,44 @@ impl<'a> Graphics<'a> {
             index_count as u32,
             texture_index,
         ));
+    }
+
+    pub fn bind_uniform<T: bytemuck::Pod>(&mut self, uniform_data: T) {
+        let uniform_bufffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Uniform buffer"),
+                contents: bytemuck::cast_slice(&[uniform_data]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
+
+        let uniform_bind_group_layout =
+            self.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                    label: Some("Uniform bind group layout"),
+                });
+
+        let uniform_bindg_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &uniform_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform_bufffer.as_entire_binding(),
+            }],
+            label: Some("Uniform Bind Group"),
+        });
+
+        self.uniform_buffers.push(uniform_bufffer);
+        self.uniform_bind_groups.push(uniform_bindg_group);
+        self.uniform_bind_group_layout = uniform_bind_group_layout;
     }
 }
