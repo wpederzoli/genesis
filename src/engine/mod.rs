@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, time::Instant};
 
 use log::info;
 use winit::{
@@ -109,57 +109,66 @@ impl Engine {
 
         let mut camera_controller = CameraController::new(0.5);
 
+        let mut last_frame_time = Instant::now();
+
         self.window
             .event_loop
-            .run(move |event, target| match event {
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    ..
-                } => target.exit(),
+            .run(move |event, target| {
+                let now = Instant::now();
+                let delta_time = now.duration_since(last_frame_time);
+                last_frame_time = now;
+                let delta_secs = delta_time.as_secs_f32();
 
-                Event::WindowEvent {
-                    event: WindowEvent::RedrawRequested,
-                    ..
-                } => {
-                    camera_controller.update_camera(&mut graphics.camera);
-                    graphics.camera_uniform.update_view_proj(&graphics.camera);
-                    graphics.queue.write_buffer(
-                        &graphics.camera_buffer,
-                        0,
-                        bytemuck::cast_slice(&[graphics.camera_uniform]),
-                    );
+                match event {
+                    Event::WindowEvent {
+                        event: WindowEvent::CloseRequested,
+                        ..
+                    } => target.exit(),
 
-                    graphics.render();
+                    Event::WindowEvent {
+                        event: WindowEvent::RedrawRequested,
+                        ..
+                    } => {
+                        camera_controller.update_camera(&mut graphics.camera);
+                        graphics.camera_uniform.update_view_proj(&graphics.camera);
+                        graphics.queue.write_buffer(
+                            &graphics.camera_buffer,
+                            0,
+                            bytemuck::cast_slice(&[graphics.camera_uniform]),
+                        );
 
-                    if let Some(scene) = self.scene_manager.get_active_scene() {
-                        scene.update(0.016);
-                        scene.draw(&mut graphics);
+                        graphics.render();
+
+                        if let Some(scene) = self.scene_manager.get_active_scene() {
+                            scene.update(delta_secs);
+                            scene.draw(&mut graphics);
+                        }
+
+                        self.scene_manager.update(&mut graphics);
+
+                        graphics.window.request_redraw();
                     }
 
-                    self.scene_manager.update(&mut graphics);
+                    Event::WindowEvent {
+                        event: WindowEvent::Resized(size),
+                        ..
+                    } => {
+                        info!("Resize requested for: {}x{}", size.width, size.height);
 
-                    graphics.window.request_redraw();
-                }
-
-                Event::WindowEvent {
-                    event: WindowEvent::Resized(size),
-                    ..
-                } => {
-                    info!("Resize requested for: {}x{}", size.width, size.height);
-
-                    graphics.config.width = size.width;
-                    graphics.config.height = size.height;
-                    graphics
-                        .surface
-                        .configure(&graphics.device, &graphics.config);
-                }
-
-                Event::WindowEvent { event, .. } => {
-                    if let Some(scene) = self.scene_manager.get_active_scene() {
-                        scene.input(&event, &target);
+                        graphics.config.width = size.width;
+                        graphics.config.height = size.height;
+                        graphics
+                            .surface
+                            .configure(&graphics.device, &graphics.config);
                     }
+
+                    Event::WindowEvent { event, .. } => {
+                        if let Some(scene) = self.scene_manager.get_active_scene() {
+                            scene.input(&event, &target);
+                        }
+                    }
+                    _ => (),
                 }
-                _ => (),
             })
             .unwrap();
     }
