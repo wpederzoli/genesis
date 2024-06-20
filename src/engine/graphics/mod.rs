@@ -31,8 +31,8 @@ pub struct Graphics<'a> {
     pipelines: Vec<pipeline::Pipeline>,
     textures: Vec<Texture>,
     uniform_buffers: Vec<wgpu::Buffer>,
-    uniform_bind_groups: Vec<wgpu::BindGroup>,
-    uniform_bind_group_layout: wgpu::BindGroupLayout,
+    uniform_bind_groups: Vec<(u32, wgpu::BindGroup)>,
+    uniform_bind_group_layouts: Vec<(u32, wgpu::BindGroupLayout)>,
     pub camera: Camera,
     camera_bind_group_layout: wgpu::BindGroupLayout,
     pub camera_uniform: CameraUniform,
@@ -143,7 +143,7 @@ impl<'a> Graphics<'a> {
             textures: Vec::new(),
             uniform_buffers: Vec::new(),
             uniform_bind_groups: Vec::new(),
-            uniform_bind_group_layout,
+            uniform_bind_group_layouts: Vec::new(),
             camera,
             camera_uniform,
             camera_buffer,
@@ -200,8 +200,8 @@ impl<'a> Graphics<'a> {
                     render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
                 }
 
-                for bind_group in &self.uniform_bind_groups {
-                    render_pass.set_bind_group(2, bind_group, &[]);
+                for (group, bind_group) in &self.uniform_bind_groups {
+                    render_pass.set_bind_group(*group, bind_group, &[]);
                 }
 
                 render_pass.set_vertex_buffer(0, vb.unwrap().slice(..));
@@ -249,8 +249,9 @@ impl<'a> Graphics<'a> {
             });
 
         let mut bind_group_layouts = vec![&self.camera_bind_group_layout];
-        if !self.uniform_bind_groups.is_empty() {
-            bind_group_layouts.push(&self.uniform_bind_group_layout)
+
+        for (_, layout) in &self.uniform_bind_group_layouts {
+            bind_group_layouts.push(layout);
         }
 
         if let Some(tex_index) = texture_index {
@@ -331,7 +332,7 @@ impl<'a> Graphics<'a> {
         ));
     }
 
-    pub fn bind_uniform<T: bytemuck::Pod>(&mut self, uniform_data: T) {
+    pub fn bind_uniform<T: bytemuck::Pod>(&mut self, uniform_data: T, group: u32, binding: u32) {
         let uniform_bufffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -344,8 +345,8 @@ impl<'a> Graphics<'a> {
             self.device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
+                        binding,
+                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -359,14 +360,15 @@ impl<'a> Graphics<'a> {
         let uniform_bindg_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &uniform_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
-                binding: 0,
+                binding,
                 resource: uniform_bufffer.as_entire_binding(),
             }],
             label: Some("Uniform Bind Group"),
         });
 
         self.uniform_buffers.push(uniform_bufffer);
-        self.uniform_bind_groups.push(uniform_bindg_group);
-        self.uniform_bind_group_layout = uniform_bind_group_layout;
+        self.uniform_bind_groups.push((group, uniform_bindg_group));
+        self.uniform_bind_group_layouts
+            .push((group, uniform_bind_group_layout));
     }
 }
